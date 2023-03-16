@@ -1,7 +1,7 @@
 ---
 title: 'A Comment on Porter and Wood (2022)^[Porter, Ethan, and Thomas J. Wood. 2022. “Political Misinformation and Factual Corrections on the Facebook                         News Feed: Experimental Evidence.” The Journal of Politics 84(3): 1812–17.]'
 author: 'Anonymous Replicators'
-abstract: \singlespacing Porter and Wood (2022) assess the effects of factual corrections on a high-choice Facebook news feed environment using two innovative online survey experiments. Both experiments lead to large correction effects (improvements in accuracy.) In study 1, the correction effect was estimated to be .55  on a five point scale; in study 2 the correction effect was estimated to be .79 on a five point scale.  Both estimates were significant at the 0.001 level. We subject these results to a robustness replication where we 1) recode the dependent variables, 2) adjust the standard errors, 3) and  model the outcomes using a multilevel model. Under some of these procedures, the magnitude or the significance level of the correction effect estimates is slightly reduced. Still, we find the original estimates robust to a set of reasonable modeling choices.  
+abstract: \singlespacing Porter and Wood (2022) assess the effects of factual corrections on a high-choice Facebook news feed environment using two innovative online survey experiments. Both experiments lead to large correction effects (improvements in accuracy.) In study 1, the correction effect was estimated to be .55  on a five point scale; in study 2 the correction effect was estimated to be .79 on a five point scale.  Both estimates were significant at the 0.001 level. We subject these results to a set of robustness replications, with increasing complexity: 1) adjust the standard errors, 2) model the outcomes using a linear multilevel model, model the outcomes using a generalized multilevel model. Under some of these procedures, the magnitude of the effect or the significance level of the correction effect estimates is slightly reduced, however the study conclusions are support by our replication. We find the original estimates robust to a set of reasonable modeling choices.  
 date: "This draft: March 6, 2023"
 mainfont: Times New Roman
 sansfont: Times New Roman
@@ -78,14 +78,14 @@ modelsummary(models_1,
              title = "Table 1: Original Point Estimates, Porter and Wood (2022)")
 ```
 
-In this short paper, we subject these results to a robustness replication. We conducted three tests. Specifically, we first used an ordered probit instead of a linear regression to model the outcome. Next, to account for the nested structure of the data we adjust the standard errors by clustering at the individual level and the claim level. Finally, and for identical reasons, we model the outcome using a multilevel model, with varying intercepts for individuals, claims, and both. We find that in the first case,. In the second case, clustering standard errors at the individual level produce no change in the significance level. However, clustering at the claim level changes the significance level to 0.01. In the last case, we obtain slightly attenuated, though statistically significant, correction effects in the same direction (Study 1: 0.53 (p < .001), Study 2: 0.76 (p < .001)).  Overall, we find the original estimates robust to a set of quite reasonable, alternate modeling choices.  
+In this short paper, we subject these results to a robustness replication. We conducted three tests, with the main contribution being that we account for the nested structure of the data. First, we adjust the standard errors by clustering at the individual level and the claim level. Second, we model the outcome using a multilevel model, with varying intercepts for individuals, claims, and both. Lastly, we used an multilevel ordered probit model to better model the outcome variable, which is an ordinal variable with values ranging from 1 to 5. The results are shown below. 
 
 
 # Robustness Replication
 
 ## Visualizing the Outcome
 
-We begin by plotting the distribution of the dependent across treatment conditions. [Reason] We note that the visually, the factual correction condition seems to push the distribution in the direciton of more accuracy for both conditions which is line with the findings. 
+We begin by plotting the distribution of the dependent across treatment conditions, because this information was not described in the paper. We note that the visually, the factual correction condition seems to push the distribution in the direciton of more accuracy for both conditions which is line with the findings. 
 
 ```{r graphs, eval=TRUE, echo=FALSE, error=FALSE, warning=FALSE, message=FALSE}
 
@@ -153,9 +153,9 @@ TreatByCond_bar
 ```
 
 
-## Dependent Variable
+## Ordered Probit Model
 
-The original results are estimated from a linear regression model. However, the dependent variable, whether accuracy or truthfulness, is measured using an ordinal variable (1-5). To improve on this model, we assess whether running an ordered probit generates coefficients roughly in line with the magnitude and statistical significance of the original studies. 
+The original results are estimated from a linear regression model, treating the outcome as a continuous variable. However, the dependent variable, whether accuracy or truthfulness, is measured using an ordinal variable (with values ranging from 1-5). To improve on this model, we assess whether running an ordered probit model generates estimates which support the original paper's conclusions. 
 
 While the estimated coefficients are not directly comparable, we conclude that our estimates reflect the same general conclusions found in Porter and Wood (2022).
 
@@ -273,7 +273,7 @@ stargazer(
 
 ## Standard Errors
 
-Abadie, Athey, Imbens and Wooldridge (2022) have shown that when conducting experiments it is best practice to cluster standard errors at the level of randomization. Since it is unclear to us from the original paper whether randomization occurs at the individual or the claim level we adjust for both, with the caveat that the number of clusters in the case of claims is low (5.) Results are shown in Tables 3 and 4. In both studies, clustering the standard errors at the claim level reduces the significance level of the point estimate from the 0.001 to the 0.01 level. For either study, clustering the standard errors at the individual level produces no change in the point estimate's significance level. 
+Abadie, Athey, Imbens and Wooldridge (2022) have shown that when conducting experiments it is best practice to cluster standard errors at the level of randomization. Since it is unclear to us from the original paper whether randomization occurs at the individual or the claim level we adjust for both, with the caveat that the number of clusters in the case of claims is low (5.) Results are shown in Tables 3 and 4. In both studies, clustering the standard errors at the claim level produces similar 'correction effect' estimates and reduces the significance level of the point estimate from the 0.001 to the 0.01 level. For either study, clustering the standard errors at the individual level produces no change in the 'correction effect' estimates nor the significance level. 
 
 
 ```{r regression_1, eval=TRUE, echo=FALSE, error=FALSE, warning=FALSE, message=FALSE}
@@ -328,7 +328,7 @@ modelsummary(models_cluster_st2,
 
 ## Multilevel Model
 
-Finally, we incorporate variation across and between groups directly into the model by building a multilevel linear model. Specifically, we allow intercepts to vary by group: whether individual, claim, or both.  Results show that for both studies, nesting observations within individuals slightly attenuates the correction effect estimates (Study 1: 0.53 (p < .001), Study 2: 0.76 (p < .001)), nesting observations within claims produces no change, and nesting by both returns identical estimates to nesting within individuals (Study 1: 0.53 (p < .001), Study 2: 0.76 (p < .001)).
+Finally, we incorporate variation across and between individuals directly into the model by building a multilevel linear model. Specifically, we allow intercepts to vary by individual, claim, or both.  Results show that for both studies, nesting observations within individuals slightly attenuates the 'correction effect' estimates (Study 1: 0.53 (p < .001), Study 2: 0.76 (p < .001)), nesting observations within claims produces no change, and nesting by both returns identical estimates to nesting within individuals (Study 1: 0.53 (p < .001), Study 2: 0.76 (p < .001)).
 
 
 
@@ -510,4 +510,4 @@ modelsummary(models_3,
 
 # Conclusion
 
-What other stuff could be done?
+Overall, the robustness replication utilzing increasingly complex models showed that the main conclusion of the of Porter and Wood (2022) were support and are robust. 
