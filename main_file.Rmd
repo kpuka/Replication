@@ -1,0 +1,513 @@
+---
+title: 'A Comment on Porter and Wood (2022)^[Porter, Ethan, and Thomas J. Wood. 2022. “Political Misinformation and Factual Corrections on the Facebook                         News Feed: Experimental Evidence.” The Journal of Politics 84(3): 1812–17.]'
+author: 'Anonymous Replicators'
+abstract: \singlespacing Porter and Wood (2022) assess the effects of factual corrections on a high-choice Facebook news feed environment using two innovative online survey experiments. Both experiments lead to large correction effects (improvements in accuracy.) In study 1, the correction effect was estimated to be .55  on a five point scale; in study 2 the correction effect was estimated to be .79 on a five point scale.  Both estimates were significant at the 0.001 level. We subject these results to a robustness replication where we 1) recode the dependent variables, 2) adjust the standard errors, 3) and  model the outcomes using a multilevel model. Under some of these procedures, the magnitude or the significance level of the correction effect estimates is slightly reduced. Still, we find the original estimates robust to a set of reasonable modeling choices.  
+date: "This draft: March 6, 2023"
+mainfont: Times New Roman
+sansfont: Times New Roman
+colorlinks: true
+documentclass: article
+geometry: margin=1in
+fontsize: 12pt
+linestretch: 1.5
+link-citations: true
+output:
+  html_document: default
+  pdf_document: 
+        includes:
+          in_header: setup/header.tex
+        number_sections: true
+  word_document: 
+    reference_docx: setup/word-template.docx
+---
+
+\newpage
+
+# Introduction
+
+Porter and Wood (2022) study the effects of factual corrections in a social media environment. In a set of experiments, participants entered a simulated Facebook news feed and were shown five stories. Participants were randomly assigned to see 1 to 5 "fake" stories, with the remaining ones being placebo. In a second page, participants were randomly assigned to see 0 to 5 factual corrections, contingent on the number of "fake" stories seen in the first screen. Thus, for each of the five possible "fake" stories, participants were in one of three experimental groups: 1) placebo stories, 2) misinformation only, and 3) misinformation plus factual correction. Both studies are identical in set-up, but alter the dependent variable (from an accuracy rating to a truthfulness rating) and the layout of the factual correction.
+
+Porter and Wood run linear regressions comparing the factual correction group to the other comparison groups. The estimate of interest is what they call the "correction effect" which is the difference in accuracy between those in the factual correction versus those in the misinformation condition. Porter and Wood describe their findings on page 1814: "In experiment 1, the overall correction effect was .55 (p < .001) on a five-point scale in the direction of greater accuracy. In experiment 2, the overall correction effect was .79 (p < .001), again on a five-point scale." They also report an average correction effect by combining results from both studies. Because of the slight differences in outcomes and treatments we evaluate both studies separately. We successfully replicated their main results, which are shown in table 1, with no errors.^[We note that per Journal of Politics policies, the original study had already been successfully reproduced by the replication analyst. Porter and Wood choose to present study results using figures, we find it simpler to replicate the tables that underpin such graphs and available in their appendix.]
+
+
+```{r load, read_data, warning=FALSE, include=FALSE, eval=TRUE}
+
+# Load packages
+
+library(tidyverse)
+library(modelsummary)
+library(marginaleffects)
+library(fixest)
+library(ggplot2)
+library(PupillometryR)
+library(here)
+
+# Read in Data
+
+raw_data<-read_rds(here("data", "raw_data.RDS"))
+
+
+
+```
+
+```{r regression_base, eval=TRUE, echo=FALSE, error=FALSE, warning=FALSE, message=FALSE}
+
+# Split studies
+raw_data<-raw_data %>%
+  mutate(cond = relevel(cond, ref = "misinfo")) #to get correction effect
+
+study1 <- raw_data %>% # Create dataset for Study 1
+  filter(study==1)
+  
+study2<- raw_data %>% # Create dataset for Study 2
+  filter(study==2)
+
+reg_base_1 <- lm(ans_num ~ cond, data = study1)
+reg_base_2 <- lm(ans_num ~ cond, data = study2)
+
+models_1 <- list(
+  "Study 1"     = reg_base_1,
+  "Study 2" = reg_base_2
+)
+
+modelsummary(models_1,
+             fmt = 2,
+             stars = TRUE,
+             coef_rename = c("conditemsonly" = "Placebo", "condcorrection" = "Condition: Correction"),
+             gof_omit = 'DF|Deviance|R2|AIC|BIC',
+             title = "Table 1: Original Point Estimates, Porter and Wood (2022)")
+```
+
+In this short paper, we subject these results to a robustness replication. We conducted three tests. Specifically, we first used an ordered probit instead of a linear regression to model the outcome. Next, to account for the nested structure of the data we adjust the standard errors by clustering at the individual level and the claim level. Finally, and for identical reasons, we model the outcome using a multilevel model, with varying intercepts for individuals, claims, and both. We find that in the first case,. In the second case, clustering standard errors at the individual level produce no change in the significance level. However, clustering at the claim level changes the significance level to 0.01. In the last case, we obtain slightly attenuated, though statistically significant, correction effects in the same direction (Study 1: 0.53 (p < .001), Study 2: 0.76 (p < .001)).  Overall, we find the original estimates robust to a set of quite reasonable, alternate modeling choices.  
+
+
+# Robustness Replication
+
+## Visualizing the Outcome
+
+We begin by plotting the distribution of the dependent across treatment conditions. [Reason] We note that the visually, the factual correction condition seems to push the distribution in the direciton of more accuracy for both conditions which is line with the findings. 
+
+```{r graphs, eval=TRUE, echo=FALSE, error=FALSE, warning=FALSE, message=FALSE}
+
+# First, let's look at average response by subject * condition
+sub_summ <- group_by(raw_data, ygid, study, cond) %>% 
+            summarise(N=length(ans_num),
+                      Mean=mean(ans_num))
+
+SubjByCond_distributions <- sub_summ %>%
+  mutate(cond = case_when( cond == "itemsonly" ~ "Placebo",
+                    cond == "misinfo" ~ "Misinformation",
+                    cond == "correction" ~ "Factual Correction"),
+         study = if_else(study==1, "Study 1", "Study 2")) %>%
+  ggplot(mapping= aes(cond, y = Mean)) + 
+  theme_bw() + 
+  facet_wrap(.~study) + 
+  geom_flat_violin(aes(fill=cond, color=cond), alpha = .5
+                   #,position=position_nudge(x=.25)
+                   ) + 
+  #geom_point(aes(fill=cond, size=N), alpha = .5, #size = .8,
+             #shape = 21, color = 'black', position=position_jitter(width = .2, height=.05)) + 
+  #scale_size_continuous('Trials per cond', limits=c(1,5)) +
+  labs(x="", title = "Figure 1: Distribution of Dependent Variables") +
+  theme(legend.position = "none") +
+  coord_flip()
+
+SubjByCond_distributions
+```
+
+Because individuals could be shown 5 distinct headlines, we plot accuracy ratings for each condition by claim. We note that there appears to be some substantial variation in how factual corrections operate across claims. We investigate this variation later.
+
+```{r graphs2, eval=TRUE, echo=FALSE, error=FALSE, warning=FALSE, message=FALSE}
+
+# Now, let's look at variation across claims 
+treat_summ <- group_by(raw_data, study, cond, treat) %>% 
+  summarise(N=length(ans_num),
+            Mean=mean(ans_num, na.rm=TRUE),
+            SD=sd(ans_num, na.rm=TRUE),
+            SE=SD/sqrt(N),
+            CI95 = SE * 1.96)
+
+TreatByCond_bar <- treat_summ %>%
+  mutate(cond = case_when( cond == "itemsonly" ~ "Placebo",
+                    cond == "misinfo" ~ "Misinformation",
+                    cond == "correction" ~ "Factual Correction"),
+         claims = case_when( treat == "fiveg" ~ "Cell Phone Tower Radiation",
+                             treat == "greta" ~ "Environmental Activist",
+                             treat == "measles" ~ "Disease Outbreaks",
+                             treat == "omar" ~ "Democratic Congressperson",
+                             treat == "trump" ~ "Republican President"),
+         study = if_else(study==1, "Study 1", "Study 2")) %>%
+  ggplot(mapping= aes(claims, y = Mean)) + 
+  theme_bw() + 
+  facet_wrap(.~study, nrow=2) + 
+  geom_bar(aes(fill=cond), position = position_dodge(.9), 
+           stat='identity', color='black') + 
+  geom_errorbar(aes(ymin=Mean-CI95, ymax=Mean+CI95, group=cond), width = 0.5, 
+                position=position_dodge(.9)) + 
+  theme(legend.title=element_blank()) +  
+  labs(x="", title = "Figure 2: Mean Accuracy by Statement Across Study") +
+  coord_flip()
+
+TreatByCond_bar
+
+```
+
+
+## Dependent Variable
+
+The original results are estimated from a linear regression model. However, the dependent variable, whether accuracy or truthfulness, is measured using an ordinal variable (1-5). To improve on this model, we assess whether running an ordered probit generates coefficients roughly in line with the magnitude and statistical significance of the original studies. 
+
+While the estimated coefficients are not directly comparable, we conclude that our estimates reflect the same general conclusions found in Porter and Wood (2022).
+
+
+```{r, warning=FALSE, message=FALSE, eval=FALSE, include=FALSE}
+set.seed (1234)
+
+library(tidyverse)
+library(modelsummary)
+library(marginaleffects)
+library(effectsize)
+library(brms)
+library(stargazer)
+
+# Read in Data
+
+raw_data <- "https://github.com/thomasjwood/factbook_avaaz/raw/master/factbook_avaaz_rc.RDS" %>% 
+  url %>% 
+  gzcon %>% 
+  readRDS
+
+study1 <- raw_data %>% # Create dataset for Study 1
+  filter(study==1)
+
+study2 <- raw_data %>% # Create dataset for Study 2
+  filter(study==2)
+
+# Replicating these Models
+
+reg_study1 <- lm(ans_num ~ cond, data = study1)
+reg_study2 <- lm(ans_num ~ cond, data = study2)
+
+## We will use the probit because it's much faster in brms/stan than the logit
+
+lm(ans_num ~ cond, data = study1)
+summary(MASS::polr(factor(ans_num) ~ cond, data = study1,method="probit"))
+
+run <- FALSE
+
+if (run){
+  # No need to run, but brms family=cumulative("probit") give same results as MASS::polr method="probit"
+  brm(ans_num ~ cond,
+      data = study1 %>% select(ans_num,cond,ygid,treat) %>% filter(complete.cases(.)),
+      family=cumulative("probit"),
+      cores=4,iter=200)  
+}
+
+if (run) {
+reg_study1_brm <- brm(ans_num ~ cond + (1|ygid) + (1|treat),
+                      data = study1 %>% select(ans_num,cond,ygid,treat) %>% filter(complete.cases(.)),
+                      cores=4,iter=400,
+                      family=cumulative("probit"))
+reg_study2_brm <- brm(ans_num ~ cond + (1|ygid) + (1|treat),
+                      data = study2 %>% select(ans_num,cond,ygid,treat) %>% filter(complete.cases(.)),
+                      cores=4,iter=400,
+                      family=cumulative("probit"))
+saveRDS(reg_study1_brm,"reg_study1_brm.rds")
+saveRDS(reg_study2_brm,"reg_study2_brm.rds")
+
+reg_study1_weight_brm <- brm(ans_num|weights(weight) ~ cond + (1|ygid) + (1|treat),
+                      data = study1 %>% select(ans_num,cond,ygid,treat,weight) %>% filter(complete.cases(.)),
+                      cores=4,iter=400,
+                      family=cumulative("probit"))
+reg_study2_weight_brm <- brm(ans_num|weights(weight) ~ cond + (1|ygid) + (1|treat),
+                      data = study2 %>% select(ans_num,cond,ygid,treat,weight) %>% filter(complete.cases(.)),
+                      cores=4,iter=400,
+                      family=cumulative("probit"))
+saveRDS(reg_study1_weight_brm,"reg_study1_weight_brm.rds")
+saveRDS(reg_study2_weight_brm,"reg_study2_weight_brm.rds")
+
+}
+```
+
+
+```{r, results='asis', eval=FALSE, include=FALSE}
+library(stargazer)
+library(modelsummary)
+library(texreg)
+library(sjPlot)
+
+
+reg_study1_brm <- read_rds(here("data","reg_study1_brm.rds"))
+
+reg_study1_weight_brm <- read_rds(here("data","reg_study1_weight_brm.rds"))
+
+
+tab_model(reg_study1_brm)
+
+stargazer(
+  summary(reg_study1_brm)$fixed[,c(1:4)] %>% mutate(`Original Results`=c("N/A","N/A","N/A","N/A","-0.12","0.43")),
+  summary = FALSE,header=FALSE, notes="Test")
+
+stargazer(
+  summary(reg_study1_weight_brm)$fixed[,c(1:4)] %>% mutate(`Original Results`=c("N/A","N/A","N/A","N/A","-0.12","0.43")),
+  summary = FALSE,header=FALSE)
+```
+
+\newpage
+
+```{r, results='asis', eval=FALSE, include=FALSE}
+library(here)
+
+reg_study2_brm <- read_rds(here("reg_study2_brm.rds")
+
+reg_study2_weight_brm <- read_rds("reg_study2_weight_brm.rds")
+
+stargazer(
+  summary(reg_study2_brm)$fixed[,c(1:4)] %>% mutate(`Original Results`=c("N/A","N/A","N/A","N/A","-0.14","0.65")),
+  summary = FALSE,header=FALSE)
+
+stargazer(
+  summary(reg_study2_weight_brm)$fixed[,c(1:4)] %>% mutate(`Original Results`=c("N/A","N/A","N/A","N/A","-0.14","0.65")),
+  summary = FALSE,header=FALSE)
+```
+
+## Standard Errors
+
+Abadie, Athey, Imbens and Wooldridge (2022) have shown that when conducting experiments it is best practice to cluster standard errors at the level of randomization. Since it is unclear to us from the original paper whether randomization occurs at the individual or the claim level we adjust for both, with the caveat that the number of clusters in the case of claims is low (5.) Results are shown in Tables 3 and 4. In both studies, clustering the standard errors at the claim level reduces the significance level of the point estimate from the 0.001 to the 0.01 level. For either study, clustering the standard errors at the individual level produces no change in the point estimate's significance level. 
+
+
+```{r regression_1, eval=TRUE, echo=FALSE, error=FALSE, warning=FALSE, message=FALSE}
+# Clustering Standard Error
+
+reg_cl_i_study1<-feols(ans_num ~ cond, cluster= "ygid", data = study1)
+reg_cl_i_study2<-feols(ans_num ~ cond, cluster= "ygid", data = study2)
+reg_cl_tr_study1<-feols(ans_num ~ cond, cluster= "treat", data = study1)
+reg_cl_tr_study2<-feols(ans_num ~ cond, cluster= "treat", data = study2)
+
+models_cluster_st1 <- list(
+  "Original"     = reg_base_1,
+  "Individual"     = reg_cl_i_study1,
+  "Claim"     = reg_cl_tr_study1
+)
+
+
+models_cluster_st2 <- list(
+  "Original" = reg_base_2,
+  "Individual" = reg_cl_i_study2,
+  "Claim" = reg_cl_tr_study2
+)
+```
+
+```{r regressions, eval=TRUE, echo=FALSE, error=FALSE, warning=FALSE, message=FALSE}
+
+
+modelsummary(models_cluster_st1,
+             fmt = 2,
+             stars = TRUE,
+             coef_rename = c("conditemsonly" = "Placebo", "condcorrection" = "Condition: Correction"),
+             gof_omit = 'DF|Deviance|R2|AIC|BIC|Log',
+             title = "Table 3: Study 1, Clustering Standard Errors")
+
+
+```
+
+```{r regression3, eval=TRUE, echo=FALSE, error=FALSE, warning=FALSE, message=FALSE}
+
+
+modelsummary(models_cluster_st2,
+             fmt = 2,
+             stars = TRUE,
+             coef_rename = c("conditemsonly" = "Placebo", "condcorrection" = "Condition: Correction"),
+             gof_omit = 'DF|Deviance|R2|AIC|BIC|Log',
+             title = "Table 4: Study 2, Clustering Standard Errors")
+
+
+
+```
+
+
+## Multilevel Model
+
+Finally, we incorporate variation across and between groups directly into the model by building a multilevel linear model. Specifically, we allow intercepts to vary by group: whether individual, claim, or both.  Results show that for both studies, nesting observations within individuals slightly attenuates the correction effect estimates (Study 1: 0.53 (p < .001), Study 2: 0.76 (p < .001)), nesting observations within claims produces no change, and nesting by both returns identical estimates to nesting within individuals (Study 1: 0.53 (p < .001), Study 2: 0.76 (p < .001)).
+
+
+
+```{r , eval=TRUE, echo=FALSE, error=FALSE, warning=FALSE, message=FALSE}
+library(lme4)
+
+# Varying Intercept Model at the Treatment and ID
+lmer_cl_i_study1 <- lmer(ans_num ~ cond + (1|treat) + (1|ygid), data=study1)
+lmer_cl_study1 <- lmer(ans_num ~ cond + (1|treat) , data=study1)
+lmer_i_study1 <- lmer(ans_num ~ cond + (1|ygid), data=study1)
+
+models_cluster_st1 <- list(
+  "Original"     = reg_base_1,
+  "VY: Individual"     = lmer_i_study1,
+  "VY: Claim"     =  lmer_cl_study1,
+  "VY: Claim and Indiviudal" = lmer_cl_i_study1
+)
+
+modelsummary(models_cluster_st1,
+             fmt = 2,
+             stars = TRUE,
+             coef_rename = c("conditemsonly" = "Placebo", "condcorrection" = "Condition: Correction"),
+             gof_omit = 'DF|Deviance|R2|AIC|BIC|Log',
+             title = "Table 5: Study 1, Varying-Intercepts")
+
+
+
+```
+
+
+```{r , eval=TRUE, echo=FALSE, error=FALSE, warning=FALSE, message=FALSE}
+# Varying Intercept Model at the Treatment and ID
+lmer_cl_i_study2 <- lmer(ans_num ~ cond + (1|treat) + (1|ygid), data=study2)
+lmer_cl_study2 <- lmer(ans_num ~ cond + (1|treat) , data=study2)
+lmer_i_study2 <- lmer(ans_num ~ cond + (1|ygid), data=study2)
+
+models_cluster_st2 <- list(
+  "Original"     = reg_base_2,
+  "VY: Individual"     = lmer_i_study2,
+  "VY: Claim"     =  lmer_cl_study2,
+  "VY: Claim and Indiviudal" = lmer_cl_i_study2
+)
+
+modelsummary(models_cluster_st2,
+             fmt = 2,
+             stars = TRUE,
+             coef_rename = c("conditemsonly" = "Placebo", "condcorrection" = "Condition: Correction"),
+             gof_omit = 'DF|Deviance|R2|AIC|BIC|Log',
+             title = "Table 6: Study 2, Varying-Intercepts")
+
+
+
+```
+
+```{r , include=FALSE, eval=FALSE}
+# Obtain base estimates for studies separately
+
+reg_study1 <- lm(ans_num ~ cond, data = study1)
+reg_study2 <- lm(ans_num ~ cond, data = study2)
+
+## Base Models from Table 
+models_1 <- list(
+  "Study 1"     = reg_study1,
+  "Study 2" = reg_study2
+)
+
+
+### Print models
+
+modelsummary(models_1,
+             fmt = 2,
+             stars = TRUE,
+             coef_rename = c("condmisinfo" = "Condition: Misinformation", "condcorrection" = "Condition: Correction"),
+             gof_omit = 'DF|Deviance|R2|AIC|BIC')
+```
+
+```{r, include=FALSE, eval=FALSE}
+### Predictions and Figures
+
+fig1<- plot_predictions(reg_study1, 
+                        condition = "cond") +
+  theme_light() +
+  labs(x="", y="Mean Agreement", title = "Predicted Accuracy Ratings") + 
+  scale_x_discrete(breaks=c("itemsonly","misinfo","correction"),
+        labels=c("Control", "Misinformation", "Correction"))
+
+ggsave(plot=fig1, "fig1.png",
+       width = 8,
+       height = 3.5,
+       units = "in", 
+       scale=.75)
+
+
+fig2<- plot_predictions(reg_study2, 
+                        condition = "cond") +
+  theme_light() +
+  labs(x="", y="Mean Truthfulness", title = "Predicted Truthfulness Ratings") + 
+  scale_x_discrete(breaks=c("itemsonly","misinfo","correction"),
+        labels=c("Control", "Misinformation", "Correction"))
+
+ggsave(plot=fig2, "fig2.png",
+       width = 8,
+       height = 3.5,
+       units = "in", 
+       scale=.75)
+
+
+```
+
+```{r , include=FALSE, eval=FALSE}
+# Clustering Standard Error
+
+reg_cl_i_study1<-feols(ans_num ~ cond, cluster= "ygid", data = study1)
+reg_cl_i_study2<-feols(ans_num ~ cond, cluster= "ygid", data = study2)
+reg_cl_tr_study1<-feols(ans_num ~ cond, cluster= "treat", data = study1)
+reg_cl_tr_study2<-feols(ans_num ~ cond, cluster= "treat", data = study2)
+
+models_cluster <- list(
+  "Study 1"     = reg_study1,
+  "Study 1"     = reg_cl_i_study1,
+  "Study 1"     = reg_cl_tr_study1,
+  "Study 2" = reg_study2,
+  "Study 2" = reg_cl_i_study2,
+  "Study 2" = reg_cl_tr_study2
+)
+
+modelsummary(models_cluster,
+             fmt = 2,
+             stars = TRUE,
+             coef_rename = c("condmisinfo" = "Condition: Misinformation", "condcorrection" = "Condition: Correction"),
+             gof_omit = 'DF|Deviance|R2|AIC|BIC')
+```
+
+
+```{r, include=FALSE, eval=FALSE}
+# Frequentist Fixed Effects
+
+library(fixest)
+fef_i_study1 <- feols(ans_num ~ cond | ygid, data = study1)
+fef_i_study2 <- feols(ans_num ~ cond | ygid, data = study2)
+fef_i_cl_study1 <- feols(ans_num ~ cond | ygid + treat, data = study1)
+fef_i_cl_study2 <- feols(ans_num ~ cond | ygid + treat, data = study2)
+
+models_2 <- list(
+  "Study 1"     = fef_i_study1,
+  "Study 1" = fef_i_cl_study1,
+  "Study 2" = fef_i_study2,
+  "Study 2" = fef_i_cl_study2
+)
+
+
+### Print models
+
+modelsummary(models_2,
+             fmt = 3,
+             stars = TRUE,
+             coef_rename = c("condmisinfo" = "Condition: Misinformation", "condcorrection" = "Condition: Correction"),
+             gof_omit = 'DF|Deviance|R2|AIC|BIC')
+
+## Comparison
+
+models_3 <- list(
+  "Study 1: OG"     = reg_study1,
+  "Study 1: FE"     = fef_i_study1,
+  "Study 1: TWFE" = fef_i_cl_study1,
+  "Study 2: OG" = reg_study2,
+  "Study 2: FE" = fef_i_study2,
+  "Study 2: TWFE" = fef_i_cl_study2
+)
+
+
+modelsummary(models_3,
+             fmt = 3,
+             stars = TRUE,
+             coef_rename = c("condmisinfo" = "Condition: Misinformation", "condcorrection" = "Condition: Correction"),
+             gof_omit = 'DF|Deviance|R2|AIC|BIC')
+
+```
+
+# Conclusion
+
+What other stuff could be done?
